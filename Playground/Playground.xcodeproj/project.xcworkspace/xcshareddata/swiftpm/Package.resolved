@@ -1,0 +1,15 @@
+{
+  "originHash" : "2daebb55d9d33ef1f7c749292979cb98d35958bdcd51cdd5c0191cde25d9b02b",
+  "pins" : [
+    {
+      "identity" : "swift-json-schema",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/kevinhermawan/swift-json-schema.git",
+      "state" : {
+        "revision" : "48cade5fb09c6fdc86adcf9af7e43a2c7582a65a",
+        "version" : "1.0.3"
+      }
+    }
+  ],
+  "version" : 3
+}
