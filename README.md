@@ -1,5 +1,7 @@
 # LLMChatAnthropic
 
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fkevinhermawan%2Fswift-llm-chat-anthropic%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/kevinhermawan/swift-llm-chat-anthropic) [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fkevinhermawan%2Fswift-llm-chat-anthropic%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/kevinhermawan/swift-llm-chat-anthropic)
+
 Interact with Anthropic and Anthropic-compatible chat completion APIs in a simple and elegant way.
 
 ### Overview
