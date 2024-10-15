@@ -19,8 +19,8 @@ let chat = LLMChatAnthropic(apiKey: "<YOUR_ANTHROPIC_API_KEY>")
 // Initialize with custom endpoint and headers
 let chat = LLMChatAnthropic(
     apiKey: "<YOUR_API_KEY>",
-    endpoint: "https://custom-api.example.com/v1/chat/completions",
-    customHeaders: ["Custom-Header": "Value"]
+    endpoint: URL(string: "https://custom-api.example.com/v1/messages")!,
+    headers: ["Custom-Header": "Value"]
 )
 ```
 
@@ -143,7 +143,7 @@ To learn more about tool use, check out the [Anthropic documentation](https://do
 ```swift
 let chat = LLMChatAnthropic(
     apiKey: "<YOUR_ANTHROPIC_API_KEY>",
-    customHeaders: ["anthropic-beta": "prompt-caching-2024-07-31"] // Required
+    headers: ["anthropic-beta": "prompt-caching-2024-07-31"] // Required
 )
 
 let messages = [

@@ -11,20 +11,20 @@ import Foundation
 public struct LLMChatAnthropic {
     private let apiKey: String
     private let endpoint: URL
-    private var customHeaders: [String: String]? = nil
+    private var headers: [String: String]? = nil
     
     /// Creates a new instance of ``LLMChatAnthropic``.
     ///
     /// - Parameters:
     ///   - apiKey: Your Anthropic API key.
     ///   - endpoint: The Anthropic-compatible endpoint.
-    ///   - customHeaders: Additional HTTP headers to include in the requests.
+    ///   - headers: Additional HTTP headers to include in the requests.
     ///
     /// - Note: Make sure to include the complete URL for the `endpoint`, including the protocol (http:// or https://) and its path.
-    public init(apiKey: String, endpoint: URL? = nil, customHeaders: [String: String]? = nil) {
+    public init(apiKey: String, endpoint: URL? = nil, headers: [String: String]? = nil) {
         self.apiKey = apiKey
         self.endpoint = endpoint ?? URL(string: "https://api.anthropic.com/v1/messages")!
-        self.customHeaders = customHeaders
+        self.headers = headers
     }
 }
 
@@ -133,25 +133,25 @@ extension LLMChatAnthropic {
 
 // MARK: - Helper Methods
 private extension LLMChatAnthropic {
-    var defaultHeaders: [String: String] {
-        var headers = [
+    var allHeaders: [String: String] {
+        var defaultHeaders = [
             "Anthropic-Version": "2023-06-01",
             "Content-Type": "application/json",
             "X-Api-Key": apiKey
         ]
         
-        if let customHeaders {
-            headers.merge(customHeaders) { _, new in new }
+        if let headers {
+            defaultHeaders.merge(headers) { _, new in new }
         }
         
-        return headers
+        return defaultHeaders
     }
     
     func createRequest(for url: URL, with body: RequestBody) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = try JSONEncoder().encode(body)
-        request.allHTTPHeaderFields = defaultHeaders
+        request.allHTTPHeaderFields = allHeaders
         
         return request
     }
