@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0A983C092CA8AB14008C3A04 /* LLMChatAnthropic in Frameworks */ = {isa = PBXBuildFile; productRef = 0A983C082CA8AB14008C3A04 /* LLMChatAnthropic */; };
+		0AD273C62CBF221C00B907C2 /* AIModelRetriever in Frameworks */ = {isa = PBXBuildFile; productRef = 0AD273C52CBF221C00B907C2 /* AIModelRetriever */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0A983C092CA8AB14008C3A04 /* LLMChatAnthropic in Frameworks */,
+				0AD273C62CBF221C00B907C2 /* AIModelRetriever in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +73,7 @@
 			name = Playground;
 			packageProductDependencies = (
 				0A983C082CA8AB14008C3A04 /* LLMChatAnthropic */,
+				0AD273C52CBF221C00B907C2 /* AIModelRetriever */,
 			);
 			productName = Playground;
 			productReference = 0A983BED2CA8AA94008C3A04 /* Playground.app */;
@@ -102,6 +105,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				0A983C072CA8AB14008C3A04 /* XCLocalSwiftPackageReference "../../swift-llm-chat-anthropic" */,
+				0AD273C42CBF221C00B907C2 /* XCRemoteSwiftPackageReference "swift-ai-model-retriever" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0A983BEE2CA8AA94008C3A04 /* Products */;
@@ -345,10 +349,26 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		0AD273C42CBF221C00B907C2 /* XCRemoteSwiftPackageReference "swift-ai-model-retriever" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kevinhermawan/swift-ai-model-retriever.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		0A983C082CA8AB14008C3A04 /* LLMChatAnthropic */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = LLMChatAnthropic;
+		};
+		0AD273C52CBF221C00B907C2 /* AIModelRetriever */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0AD273C42CBF221C00B907C2 /* XCRemoteSwiftPackageReference "swift-ai-model-retriever" */;
+			productName = AIModelRetriever;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

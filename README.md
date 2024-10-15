@@ -48,8 +48,8 @@ let chat = LLMChatAnthropic(apiKey: "<YOUR_ANTHROPIC_API_KEY>")
 // Initialize with custom endpoint and headers
 let chat = LLMChatAnthropic(
     apiKey: "<YOUR_API_KEY>",
-    endpoint: "https://custom-api.example.com/v1/chat/completions",
-    customHeaders: ["Custom-Header": "Value"]
+    endpoint: URL(string: "https://custom-api.example.com/v1/messages")!,
+    headers: ["Custom-Header": "Value"]
 )
 ```
 
@@ -172,7 +172,7 @@ To learn more about tool use, check out the [Anthropic documentation](https://do
 ```swift
 let chat = LLMChatAnthropic(
     apiKey: "<YOUR_ANTHROPIC_API_KEY>",
-    customHeaders: ["anthropic-beta": "prompt-caching-2024-07-31"] // Required
+    headers: ["anthropic-beta": "prompt-caching-2024-07-31"] // Required
 )
 
 let messages = [
@@ -193,14 +193,14 @@ let task = Task {
 
 To learn more about prompt caching, check out the [Anthropic documentation](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching).
 
-## Donations
+## Support
 
 If you find `LLMChatAnthropic` helpful and would like to support its development, consider making a donation. Your contribution helps maintain the project and develop new features.
 
 - [GitHub Sponsors](https://github.com/sponsors/kevinhermawan)
 - [Buy Me a Coffee](https://buymeacoffee.com/kevinhermawan)
 
-Your support is greatly appreciated!
+Your support is greatly appreciated! ❤️
 
 ## Contributing
 
