@@ -193,6 +193,12 @@ let task = Task {
 
 To learn more about prompt caching, check out the [Anthropic documentation](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching).
 
+## Related Packages
+
+- [swift-ai-model-retriever](https://github.com/kevinhermawan/swift-ai-model-retriever)
+- [swift-json-schema](https://github.com/kevinhermawan/swift-json-schema)
+- [swift-llm-chat-openai](https://github.com/kevinhermawan/swift-llm-chat-openai)
+
 ## Support
 
 If you find `LLMChatAnthropic` helpful and would like to support its development, consider making a donation. Your contribution helps maintain the project and develop new features.
