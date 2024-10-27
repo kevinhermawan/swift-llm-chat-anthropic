@@ -34,7 +34,7 @@ let messages = [
 
 let task = Task {
     do {
-        let completion = try await chat.send(model: "claude-3-5-sonnet-20240620", messages: messages)
+        let completion = try await chat.send(model: "claude-3-5-sonnet", messages: messages)
 
         print(completion.content.first?.text ?? "No response")
     } catch {
@@ -56,7 +56,7 @@ let messages = [
 
 let task = Task {
     do {
-        for try await chunk in chat.stream(model: "claude-3-5-sonnet-20240620", messages: messages) {
+        for try await chunk in chat.stream(model: "claude-3-5-sonnet", messages: messages) {
             if let text = chunk.delta?.text {
                 print(text, terminator: "")
             }
@@ -87,7 +87,7 @@ let messages = [
 
 Task {
     do {
-        let completion = try await chat.send(model: "claude-3-5-sonnet-20240620", messages: messages)
+        let completion = try await chat.send(model: "claude-3-5-sonnet", messages: messages)
 
         print(completion.content.first?.text ?? "")
     } catch {
@@ -125,7 +125,7 @@ let options = ChatOptions(tools: [recommendBookTool])
 
 Task {
     do {
-        let completion = try await chat.send(model: "claude-3-5-sonnet-20240620", messages: messages, options: options)
+        let completion = try await chat.send(model: "claude-3-5-sonnet", messages: messages, options: options)
 
         if let toolInput = completion.content.first(where: { $0.type == "tool_use" })?.toolInput {
             print(toolInput)
@@ -153,7 +153,7 @@ let messages = [
 
 let task = Task {
     do {
-        let completion = try await chat.send(model: "claude-3-5-sonnet-20240620", messages: messages)
+        let completion = try await chat.send(model: "claude-3-5-sonnet", messages: messages)
 
         print(completion.content.first?.text ?? "No response")
     } catch {
@@ -163,6 +163,35 @@ let task = Task {
 ```
 
 To learn more about prompt caching, check out the [Anthropic documentation](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching).
+
+### Error Handling
+
+``LLMChatAnthropic`` provides structured error handling through the ``LLMChatAnthropicError`` enum. This enum contains three cases that represent different types of errors you might encounter:
+
+```swift
+let messages = [
+    ChatMessage(role: .system, content: "You are a helpful assistant."),
+    ChatMessage(role: .user, content: "What is the capital of Indonesia?")
+]
+
+do {
+    let completion = try await chat.send(model: "claude-3-5-sonnet", messages: messages)
+
+    print(completion.content.first?.text ?? "No response")
+} catch let error as LLMChatAnthropicError {
+    switch error {
+    case .serverError(let message):
+        // Handle server-side errors (e.g., invalid API key, rate limits)
+        print("Server Error: \(message)")
+    case .networkError(let error):
+        // Handle network-related errors (e.g., no internet connection)
+        print("Network Error: \(error.localizedDescription)")
+    case .badServerResponse:
+        // Handle invalid server responses
+        print("Invalid response received from server")
+    }
+}
+```
 
 ## Related Packages
 

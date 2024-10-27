@@ -26,9 +26,24 @@ public struct LLMChatAnthropic {
         self.endpoint = endpoint ?? URL(string: "https://api.anthropic.com/v1/messages")!
         self.headers = headers
     }
+    
+    private var allHeaders: [String: String] {
+        var defaultHeaders = [
+            "Anthropic-Version": "2023-06-01",
+            "Content-Type": "application/json",
+            "X-Api-Key": apiKey
+        ]
+        
+        if let headers {
+            defaultHeaders.merge(headers) { _, new in new }
+        }
+        
+        return defaultHeaders
+    }
 }
 
-extension LLMChatAnthropic {
+// MARK: - Send
+public extension LLMChatAnthropic {
     /// Sends a chat completion request.
     ///
     /// - Parameters:
@@ -37,14 +52,10 @@ extension LLMChatAnthropic {
     ///   - options: Optional ``ChatOptions`` that customize the completion request.
     ///
     /// - Returns: A ``ChatCompletion`` object that contains the API's response.
-    public func send(model: String, messages: [ChatMessage], options: ChatOptions? = nil) async throws -> ChatCompletion {
+    func send(model: String, messages: [ChatMessage], options: ChatOptions? = nil) async throws -> ChatCompletion {
         let body = RequestBody(stream: false, model: model, messages: messages, options: options)
-        let request = try createRequest(for: endpoint, with: body)
         
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try validateHTTPResponse(response)
-        
-        return try JSONDecoder().decode(ChatCompletion.self, from: data)
+        return try await performRequest(with: body)
     }
     
     /// Streams a chat completion request.
@@ -55,15 +66,63 @@ extension LLMChatAnthropic {
     ///   - options: Optional ``ChatOptions`` that customize the completion request.
     ///
     /// - Returns: An `AsyncThrowingStream` of ``ChatCompletionChunk`` objects.
-    public func stream(model: String, messages: [ChatMessage], options: ChatOptions? = nil) -> AsyncThrowingStream<ChatCompletionChunk, Error> {
+    func stream(model: String, messages: [ChatMessage], options: ChatOptions? = nil) -> AsyncThrowingStream<ChatCompletionChunk, Error> {
+        let body = RequestBody(stream: true, model: model, messages: messages, options: options)
+        
+        return performStreamRequest(with: body)
+    }
+}
+
+// MARK: - Helpers
+private extension LLMChatAnthropic {
+    func createRequest(for url: URL, with body: RequestBody) throws -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpBody = try JSONEncoder().encode(body)
+        request.allHTTPHeaderFields = allHeaders
+        
+        return request
+    }
+    
+    func performRequest(with body: RequestBody) async throws -> ChatCompletion {
+        do {
+            let request = try createRequest(for: endpoint, with: body)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let errorResponse = try? JSONDecoder().decode(ChatCompletionError.self, from: data) {
+                throw LLMChatAnthropicError.serverError(errorResponse.error.message)
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse, 200...299 ~= httpResponse.statusCode else {
+                throw LLMChatAnthropicError.badServerResponse
+            }
+            
+            return try JSONDecoder().decode(ChatCompletion.self, from: data)
+        } catch let error as LLMChatAnthropicError {
+            throw error
+        } catch {
+            throw LLMChatAnthropicError.networkError(error)
+        }
+    }
+    
+    func performStreamRequest(with body: RequestBody) -> AsyncThrowingStream<ChatCompletionChunk, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    let body = RequestBody(stream: true, model: model, messages: messages, options: options)
                     let request = try createRequest(for: endpoint, with: body)
-                    
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
-                    try validateHTTPResponse(response)
+                    
+                    guard let httpResponse = response as? HTTPURLResponse, 200...299 ~= httpResponse.statusCode else {
+                        for try await line in bytes.lines {
+                            if let data = line.data(using: .utf8), let errorResponse = try? JSONDecoder().decode(ChatCompletionError.self, from: data) {
+                                throw LLMChatAnthropicError.serverError(errorResponse.error.message)
+                            }
+                            
+                            break
+                        }
+                        
+                        throw LLMChatAnthropicError.badServerResponse
+                    }
                     
                     var currentChunk = ChatCompletionChunk(id: "", model: "", role: "")
                     
@@ -123,42 +182,12 @@ extension LLMChatAnthropic {
                     }
                     
                     continuation.finish()
-                } catch {
+                } catch let error as LLMChatAnthropicError {
                     continuation.finish(throwing: error)
+                } catch {
+                    continuation.finish(throwing: LLMChatAnthropicError.networkError(error))
                 }
             }
-        }
-    }
-}
-
-// MARK: - Helper Methods
-private extension LLMChatAnthropic {
-    var allHeaders: [String: String] {
-        var defaultHeaders = [
-            "Anthropic-Version": "2023-06-01",
-            "Content-Type": "application/json",
-            "X-Api-Key": apiKey
-        ]
-        
-        if let headers {
-            defaultHeaders.merge(headers) { _, new in new }
-        }
-        
-        return defaultHeaders
-    }
-    
-    func createRequest(for url: URL, with body: RequestBody) throws -> URLRequest {
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.httpBody = try JSONEncoder().encode(body)
-        request.allHTTPHeaderFields = allHeaders
-        
-        return request
-    }
-    
-    func validateHTTPResponse(_ response: URLResponse) throws {
-        guard let httpResponse = response as? HTTPURLResponse, 200...299 ~= httpResponse.statusCode else {
-            throw URLError(.badServerResponse)
         }
     }
 }
@@ -171,34 +200,47 @@ private extension LLMChatAnthropic {
         let messages: [ChatMessage]
         let options: ChatOptions?
         
+        private struct SystemMessage: Encodable {
+            let type: String
+            let text: String
+            let cacheControl: CacheControl?
+            
+            private enum CodingKeys: String, CodingKey {
+                case type, text
+                case cacheControl = "cache_control"
+            }
+            
+            struct CacheControl: Encodable {
+                let type: String
+            }
+        }
+        
         func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(options?.maxTokens ?? 4096, forKey: .maxTokens)
             try container.encode(stream, forKey: .stream)
             try container.encode(model, forKey: .model)
             
-            var systemMessages: [[String: String]] = []
-            var nonSystemMessages: [ChatMessage] = []
-            
-            for message in messages {
-                if message.role == .system {
-                    for content in message.content {
-                        if case .text(let text) = content {
-                            var encodedContent: [String: String] = ["type": "text", "text": text]
-                            
-                            if let cacheControl = message.cacheControl {
-                                encodedContent["cacheControl"] = cacheControl.type.rawValue
+            let systemMessages: [SystemMessage] = messages
+                .filter { $0.role == .system }
+                .flatMap { message in
+                    message.content.compactMap { content -> SystemMessage? in
+                        guard case .text(let text) = content else { return nil }
+                        
+                        return SystemMessage(
+                            type: "text",
+                            text: text,
+                            cacheControl: message.cacheControl.map {
+                                SystemMessage.CacheControl(type: $0.type.rawValue)
                             }
-                            
-                            systemMessages.append(encodedContent)
-                        }
+                        )
                     }
-                } else {
-                    nonSystemMessages.append(message)
                 }
-            }
             
-            if systemMessages.isEmpty == false {
+            let nonSystemMessages = messages
+                .filter { $0.role != .system }
+            
+            if !systemMessages.isEmpty {
                 try container.encode(systemMessages, forKey: .system)
             }
             
@@ -213,15 +255,6 @@ private extension LLMChatAnthropic {
             case stream, model
             case maxTokens = "max_tokens"
             case system, messages
-        }
-        
-        enum ContentCodingKeys: String, CodingKey {
-            case type, text
-            case cacheControl = "cache_control"
-        }
-        
-        enum CacheControlCodingKeys: String, CodingKey {
-            case type
         }
     }
     
@@ -274,6 +307,14 @@ private extension LLMChatAnthropic {
             case type, message
             case contentBlock = "content_block"
             case delta, usage
+        }
+    }
+    
+    struct ChatCompletionError: Codable {
+        let error: Error
+        
+        struct Error: Codable {
+            let message: String
         }
     }
 }

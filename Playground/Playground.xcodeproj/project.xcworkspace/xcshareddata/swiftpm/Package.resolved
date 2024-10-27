@@ -1,5 +1,5 @@
 {
-  "originHash" : "9babdbe0d420e7da0e4b1fdca252d3d06b03638f979b3d4ce55ccda4d14b84d3",
+  "originHash" : "53903b86839844f0235d6409aeff93ce3322d067fe255f83676414c60e9c1cd7",
   "pins" : [
     {
       "identity" : "swift-ai-model-retriever",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/kevinhermawan/swift-ai-model-retriever.git",
       "state" : {
         "branch" : "main",
-        "revision" : "5d22906f1bedcb53452257c784ebffa72e9ad1cb"
+        "revision" : "585de8246341cf0b715357ecfd57c20aea52545c"
       }
     },
     {
