@@ -133,3 +133,97 @@ final class ChatCompletionTests: XCTestCase {
         XCTAssertEqual(receivedUsage?.totalTokens, 15)
     }
 }
+// MARK: - Error Handling
+extension ChatCompletionTests {
+    func testServerError() async throws {
+        let mockErrorResponse = """
+        {
+            "error": {
+                "message": "Invalid API key provided"
+            }
+        }
+        """
+        
+        URLProtocolMock.mockData = mockErrorResponse.data(using: .utf8)
+        
+        do {
+            _ = try await chat.send(model: "claude-3-5-sonnet", messages: messages)
+            
+            XCTFail("Expected serverError to be thrown")
+        } catch let error as LLMChatAnthropicError {
+            switch error {
+            case .serverError(let message):
+                XCTAssertEqual(message, "Invalid API key provided")
+            default:
+                XCTFail("Expected serverError but got \(error)")
+            }
+        }
+    }
+    
+    func testNetworkError() async throws {
+        URLProtocolMock.mockError = NSError(
+            domain: NSURLErrorDomain,
+            code: NSURLErrorNotConnectedToInternet,
+            userInfo: [NSLocalizedDescriptionKey: "The Internet connection appears to be offline."]
+        )
+        
+        do {
+            _ = try await chat.send(model: "claude-3-5-sonnet", messages: messages)
+            
+            XCTFail("Expected networkError to be thrown")
+        } catch let error as LLMChatAnthropicError {
+            switch error {
+            case .networkError(let underlyingError):
+                XCTAssertEqual((underlyingError as NSError).code, NSURLErrorNotConnectedToInternet)
+            default:
+                XCTFail("Expected networkError but got \(error)")
+            }
+        }
+    }
+    
+    func testStreamServerError() async throws {
+        let mockErrorResponse = """
+        {
+            "error": {
+                "message": "Rate limit exceeded"
+            }
+        }
+        """
+        
+        URLProtocolMock.mockStreamData = [mockErrorResponse]
+        
+        do {
+            for try await _ in chat.stream(model: "claude-3-5-sonnet", messages: messages) {
+                XCTFail("Expected serverError to be thrown")
+            }
+        } catch let error as LLMChatAnthropicError {
+            switch error {
+            case .serverError(let message):
+                XCTAssertEqual(message, "Rate limit exceeded")
+            default:
+                XCTFail("Expected serverError but got \(error)")
+            }
+        }
+    }
+    
+    func testStreamNetworkError() async throws {
+        URLProtocolMock.mockError = NSError(
+            domain: NSURLErrorDomain,
+            code: NSURLErrorNotConnectedToInternet,
+            userInfo: [NSLocalizedDescriptionKey: "The Internet connection appears to be offline."]
+        )
+        
+        do {
+            for try await _ in chat.stream(model: "claude-3-5-sonnet", messages: messages) {
+                XCTFail("Expected networkError to be thrown")
+            }
+        } catch let error as LLMChatAnthropicError {
+            switch error {
+            case .networkError(let underlyingError):
+                XCTAssertEqual((underlyingError as NSError).code, NSURLErrorNotConnectedToInternet)
+            default:
+                XCTFail("Expected networkError but got \(error)")
+            }
+        }
+    }
+}
