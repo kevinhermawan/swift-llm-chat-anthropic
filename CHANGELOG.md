@@ -1,3 +1,9 @@
+# 1.1.1
+
+- docs: adds related packages section by @kevinhermawan in https://github.com/kevinhermawan/swift-llm-chat-anthropic/pull/4
+- feat: adds type aliases by @kevinhermawan in https://github.com/kevinhermawan/swift-llm-chat-anthropic/pull/5
+- improve: adds better error handling by @kevinhermawan in https://github.com/kevinhermawan/swift-llm-chat-anthropic/pull/6
+
 # 1.1.0
 
 - chore: adds SPI badges by @kevinhermawan in https://github.com/kevinhermawan/swift-llm-chat-anthropic/pull/1
