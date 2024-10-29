@@ -8,7 +8,7 @@
 import Foundation
 
 /// An enum that represents errors from the chat completion request.
-public enum LLMChatAnthropicError: LocalizedError {
+public enum LLMChatAnthropicError: LocalizedError, Sendable {
     /// A case that represents a server-side error response.
     ///
     /// - Parameter message: The error message from the server.

@@ -8,7 +8,7 @@
 import Foundation
 
 /// A struct that represents a message in a chat conversation.
-public struct ChatMessage: Encodable {
+public struct ChatMessage: Encodable, Sendable {
     /// The role of the participant in the chat conversation.
     public let role: Role
     
@@ -19,14 +19,14 @@ public struct ChatMessage: Encodable {
     public var cacheControl: CacheControl?
     
     /// An enum that represents the role of a participant in the chat.
-    public enum Role: String, Codable {
+    public enum Role: String, Codable, Sendable {
         case system
         case user
         case assistant
     }
     
     /// An enum that represents the content of a chat message.
-    public enum Content: Encodable {
+    public enum Content: Encodable, Sendable {
         /// A case that represents text content.
         case text(String)
         
@@ -103,12 +103,12 @@ public struct ChatMessage: Encodable {
     }
     
     /// A struct that represents cache control settings for a system message.
-    public struct CacheControl: Encodable {
+    public struct CacheControl: Encodable, Sendable {
         /// The type of cache control.
         public let type: `Type`
         
         /// An enum that represents the types of cache control.
-        public enum `Type`: String, Encodable, CaseIterable {
+        public enum `Type`: String, Encodable, Sendable, CaseIterable {
             /// A case that represents ephemeral cache control.
             case ephemeral
         }

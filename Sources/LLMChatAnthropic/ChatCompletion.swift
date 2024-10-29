@@ -8,7 +8,7 @@
 import Foundation
 
 /// A struct that represents a chat completion response.
-public struct ChatCompletion: Decodable {
+public struct ChatCompletion: Decodable, Sendable {
     /// A unique identifier for the chat completion.
     public let id: String
     
@@ -31,7 +31,7 @@ public struct ChatCompletion: Decodable {
     public let usage: Usage?
     
     /// A struct that represents a content in the chat completion.
-    public struct Content: Decodable {
+    public struct Content: Decodable, Sendable {
         /// The type of the content element.
         public let type: String
         
@@ -63,7 +63,7 @@ public struct ChatCompletion: Decodable {
     }
     
     /// A struct that represents usage statistics for the chat completion.
-    public struct Usage: Decodable {
+    public struct Usage: Decodable, Sendable {
         /// The number of input tokens used.
         public let inputTokens: Int
         

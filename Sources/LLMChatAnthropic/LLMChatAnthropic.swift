@@ -8,7 +8,7 @@
 import Foundation
 
 /// A struct that facilitates interactions with Anthropic and Anthropic-compatible chat completion APIs.
-public struct LLMChatAnthropic {
+public struct LLMChatAnthropic: Sendable {
     private let apiKey: String
     private let endpoint: URL
     private var headers: [String: String]? = nil
