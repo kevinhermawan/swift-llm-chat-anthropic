@@ -9,7 +9,7 @@ import Foundation
 import JSONSchema
 
 /// A struct that represents the options of a chat completion request.
-public struct ChatOptions: Encodable {
+public struct ChatOptions: Encodable, Sendable {
     /// The maximum number of tokens to generate.
     public let maxTokens: Int?
     
@@ -65,7 +65,7 @@ public struct ChatOptions: Encodable {
     }
     
     /// A struct that represents a tool available for the model to use.
-    public struct Tool: Encodable {
+    public struct Tool: Encodable, Sendable {
         /// The name of the tool.
         public let name: String
         
@@ -100,7 +100,7 @@ public struct ChatOptions: Encodable {
     }
     
     /// An enum that represents the tool choice for the model.
-    public enum ToolChoice: Encodable {
+    public enum ToolChoice: Encodable, Sendable {
         /// Allows the model to use any available tool.
         case any
         

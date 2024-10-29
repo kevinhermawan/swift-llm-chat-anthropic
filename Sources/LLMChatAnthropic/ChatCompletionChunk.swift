@@ -8,7 +8,7 @@
 import Foundation
 
 /// A struct that represents a streamed chunk of a chat completion response.
-public struct ChatCompletionChunk {
+public struct ChatCompletionChunk: Sendable {
     /// A unique identifier for the chat completion.
     public var id: String
     
@@ -31,7 +31,7 @@ public struct ChatCompletionChunk {
     public var usage: Usage?
     
     /// A struct that represents the delta content in a chat completion chunk.
-    public struct Delta: Decodable {
+    public struct Delta: Decodable, Sendable {
         /// The type of the delta content.
         public var type: String
         
@@ -50,7 +50,7 @@ public struct ChatCompletionChunk {
     }
     
     /// A struct that represents usage statistics for the chat completion chunk.
-    public struct Usage: Decodable {
+    public struct Usage: Decodable, Sendable {
         /// The number of input tokens used.
         public var inputTokens: Int
         
