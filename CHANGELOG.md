@@ -1,3 +1,9 @@
+# 1.2.0
+
+- feat: conforms to `Sendable` by @kevinhermawan in https://github.com/kevinhermawan/swift-llm-chat-anthropic/pull/7
+- refactor: improves error handling by @kevinhermawan in https://github.com/kevinhermawan/swift-llm-chat-anthropic/pull/8
+- docs: adds stream error handling by @kevinhermawan in https://github.com/kevinhermawan/swift-llm-chat-anthropic/pull/9
+
 # 1.1.1
 
 - docs: adds related packages section by @kevinhermawan in https://github.com/kevinhermawan/swift-llm-chat-anthropic/pull/4
