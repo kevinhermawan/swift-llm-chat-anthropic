@@ -217,7 +217,10 @@ do {
         print("Network Error: \(error.localizedDescription)")
     case .decodingError(let error):
         // Handle errors that occur when the response cannot be decoded
-        print("Decoding Error: \(error)")
+        print("Decoding Error: \(error.localizedDescription)")
+    case .streamError:
+        // Handle errors that occur when streaming responses
+        print("Stream Error")
     case .cancelled:
         // Handle requests that are cancelled
         print("Request was cancelled")
