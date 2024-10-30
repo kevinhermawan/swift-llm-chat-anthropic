@@ -89,15 +89,26 @@ private extension LLMChatAnthropic {
             let request = try createRequest(for: endpoint, with: body)
             let (data, response) = try await URLSession.shared.data(for: request)
             
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw LLMChatAnthropicError.serverError(response.description)
+            }
+            
+            // Check for API errors first, as they might come with 200 status
             if let errorResponse = try? JSONDecoder().decode(ChatCompletionError.self, from: data) {
                 throw LLMChatAnthropicError.serverError(errorResponse.error.message)
             }
             
-            guard let httpResponse = response as? HTTPURLResponse, 200...299 ~= httpResponse.statusCode else {
-                throw LLMChatAnthropicError.badServerResponse
+            guard 200...299 ~= httpResponse.statusCode else {
+                throw LLMChatAnthropicError.serverError(response.description)
             }
             
             return try JSONDecoder().decode(ChatCompletion.self, from: data)
+        } catch is CancellationError {
+            throw LLMChatAnthropicError.cancelled
+        } catch let error as URLError where error.code == .cancelled {
+            throw LLMChatAnthropicError.cancelled
+        } catch let error as DecodingError {
+            throw LLMChatAnthropicError.decodingError(error)
         } catch let error as LLMChatAnthropicError {
             throw error
         } catch {
@@ -107,86 +118,98 @@ private extension LLMChatAnthropic {
     
     func performStreamRequest(with body: RequestBody) -> AsyncThrowingStream<ChatCompletionChunk, Error> {
         AsyncThrowingStream { continuation in
-            Task {
-                do {
-                    let request = try createRequest(for: endpoint, with: body)
-                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
-                    
-                    guard let httpResponse = response as? HTTPURLResponse, 200...299 ~= httpResponse.statusCode else {
-                        for try await line in bytes.lines {
-                            if let data = line.data(using: .utf8), let errorResponse = try? JSONDecoder().decode(ChatCompletionError.self, from: data) {
-                                throw LLMChatAnthropicError.serverError(errorResponse.error.message)
-                            }
-                            
-                            break
+            let task = Task {
+                await withTaskCancellationHandler {
+                    do {
+                        let request = try createRequest(for: endpoint, with: body)
+                        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                        
+                        guard let httpResponse = response as? HTTPURLResponse, 200...299 ~= httpResponse.statusCode else {
+                            throw LLMChatAnthropicError.serverError(response.description)
                         }
                         
-                        throw LLMChatAnthropicError.badServerResponse
-                    }
-                    
-                    var currentChunk = ChatCompletionChunk(id: "", model: "", role: "")
-                    
-                    for try await line in bytes.lines {
-                        if line.hasPrefix("data: ") {
-                            let jsonData = line.dropFirst(6)
+                        var currentChunk = ChatCompletionChunk(id: "", model: "", role: "")
+                        
+                        for try await line in bytes.lines {
+                            try Task.checkCancellation()
                             
-                            if let data = jsonData.data(using: .utf8) {
-                                let rawChunk = try JSONDecoder().decode(RawChatCompletionChunk.self, from: data)
-                                
-                                switch rawChunk.type {
-                                case "message_start":
-                                    if let message = rawChunk.message {
-                                        currentChunk.id = message.id
-                                        currentChunk.role = message.role
-                                        currentChunk.model = message.model
-                                        
-                                        if let usage = message.usage, let inputTokens = usage.inputTokens, let outputTokens = usage.outputTokens {
-                                            currentChunk.usage = ChatCompletionChunk.Usage(inputTokens: inputTokens, outputTokens: outputTokens)
-                                        }
-                                        
-                                        continuation.yield(currentChunk)
+                            if line.hasPrefix("event: error") {
+                                throw LLMChatAnthropicError.streamError
+                            }
+                            
+                            guard line.hasPrefix("data: "), let data = line.dropFirst(6).data(using: .utf8) else {
+                                continue
+                            }
+                            
+                            let rawChunk = try JSONDecoder().decode(RawChatCompletionChunk.self, from: data)
+                            
+                            switch rawChunk.type {
+                            case "message_start":
+                                if let message = rawChunk.message {
+                                    currentChunk.id = message.id
+                                    currentChunk.role = message.role
+                                    currentChunk.model = message.model
+                                    
+                                    if let usage = message.usage, let inputTokens = usage.inputTokens, let outputTokens = usage.outputTokens {
+                                        currentChunk.usage = .init(inputTokens: inputTokens, outputTokens: outputTokens)
                                     }
-                                case "content_block_start":
-                                    if let contentBlock = rawChunk.contentBlock {
-                                        currentChunk.delta = ChatCompletionChunk.Delta(type: contentBlock.type, toolName: contentBlock.name)
-                                        
-                                        continuation.yield(currentChunk)
-                                    }
-                                case "content_block_delta":
-                                    if let delta = rawChunk.delta {
-                                        currentChunk.delta?.text = delta.text
-                                        currentChunk.delta?.toolInput = delta.partialJson
-                                        
-                                        continuation.yield(currentChunk)
-                                    }
-                                case "message_delta":
-                                    if let delta = rawChunk.delta {
-                                        currentChunk.delta?.text = nil
-                                        currentChunk.delta?.toolInput = nil
-                                        currentChunk.stopReason = delta.stopReason
-                                        currentChunk.stopSequence = delta.stopSequence
-                                        
-                                        if let outputTokens = rawChunk.usage?.outputTokens {
-                                            currentChunk.usage?.outputTokens = outputTokens
-                                        }
-                                        
-                                        continuation.yield(currentChunk)
-                                    }
-                                case "message_stop":
-                                    continuation.finish()
-                                default:
-                                    break
+                                    
+                                    continuation.yield(currentChunk)
                                 }
+                                
+                            case "content_block_start":
+                                if let contentBlock = rawChunk.contentBlock {
+                                    currentChunk.delta = .init(type: contentBlock.type, toolName: contentBlock.name)
+                                    
+                                    continuation.yield(currentChunk)
+                                }
+                            case "content_block_delta":
+                                if let delta = rawChunk.delta {
+                                    currentChunk.delta?.text = delta.text
+                                    currentChunk.delta?.toolInput = delta.partialJson
+                                    
+                                    continuation.yield(currentChunk)
+                                }
+                            case "message_delta":
+                                if let delta = rawChunk.delta {
+                                    currentChunk.delta?.text = nil
+                                    currentChunk.delta?.toolInput = nil
+                                    currentChunk.stopReason = delta.stopReason
+                                    currentChunk.stopSequence = delta.stopSequence
+                                    
+                                    if let outputTokens = rawChunk.usage?.outputTokens {
+                                        currentChunk.usage?.outputTokens = outputTokens
+                                    }
+                                    
+                                    continuation.yield(currentChunk)
+                                }
+                            case "message_stop":
+                                continuation.finish()
+                                return
+                            default:
+                                break
                             }
                         }
+                        
+                        continuation.finish()
+                    } catch is CancellationError {
+                        continuation.finish(throwing: LLMChatAnthropicError.cancelled)
+                    } catch let error as URLError where error.code == .cancelled {
+                        continuation.finish(throwing: LLMChatAnthropicError.cancelled)
+                    } catch let error as DecodingError {
+                        continuation.finish(throwing: LLMChatAnthropicError.decodingError(error))
+                    } catch let error as LLMChatAnthropicError {
+                        continuation.finish(throwing: error)
+                    } catch {
+                        continuation.finish(throwing: LLMChatAnthropicError.networkError(error))
                     }
-                    
-                    continuation.finish()
-                } catch let error as LLMChatAnthropicError {
-                    continuation.finish(throwing: error)
-                } catch {
-                    continuation.finish(throwing: LLMChatAnthropicError.networkError(error))
+                } onCancel: {
+                    continuation.finish(throwing: LLMChatAnthropicError.cancelled)
                 }
+            }
+            
+            continuation.onTermination = { @Sendable _ in
+                task.cancel()
             }
         }
     }
