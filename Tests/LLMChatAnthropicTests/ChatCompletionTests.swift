@@ -24,6 +24,7 @@ final class ChatCompletionTests: XCTestCase {
         ]
         
         URLProtocol.registerClass(URLProtocolMock.self)
+        URLProtocolMock.reset()
     }
     
     override func tearDown() {
@@ -181,37 +182,91 @@ extension ChatCompletionTests {
         }
     }
     
-    func testStreamServerError() async throws {
-        let mockErrorResponse = """
-        {
-            "error": {
-                "message": "Rate limit exceeded"
-            }
-        }
-        """
-        
-        URLProtocolMock.mockStreamData = [mockErrorResponse]
+    func testHTTPError() async throws {
+        URLProtocolMock.mockStatusCode = 429
+        URLProtocolMock.mockData = "Rate limit exceeded".data(using: .utf8)
         
         do {
-            for try await _ in chat.stream(model: "claude-3-5-sonnet", messages: messages) {
-                XCTFail("Expected serverError to be thrown")
-            }
+            _ = try await chat.send(model: "claude-3-5-sonnet", messages: messages)
+            
+            XCTFail("Expected serverError to be thrown")
         } catch let error as LLMChatAnthropicError {
             switch error {
             case .serverError(let message):
-                XCTAssertEqual(message, "Rate limit exceeded")
+                XCTAssertTrue(message.contains("429"))
             default:
                 XCTFail("Expected serverError but got \(error)")
             }
         }
     }
     
+    func testDecodingError() async throws {
+        let invalidJSON = "{ invalid json }"
+        URLProtocolMock.mockData = invalidJSON.data(using: .utf8)
+        
+        do {
+            _ = try await chat.send(model: "claude-3-5-sonnet", messages: messages)
+            
+            XCTFail("Expected decodingError to be thrown")
+        } catch let error as LLMChatAnthropicError {
+            switch error {
+            case .decodingError:
+                break
+            default:
+                XCTFail("Expected decodingError but got \(error)")
+            }
+        }
+    }
+    
+    func testCancellation() async throws {
+        let task = Task {
+            _ = try await chat.send(model: "claude-3-5-sonnet", messages: messages)
+        }
+        
+        task.cancel()
+        
+        do {
+            _ = try await task.value
+            
+            XCTFail("Expected cancelled error to be thrown")
+        } catch let error as LLMChatAnthropicError {
+            switch error {
+            case .cancelled:
+                break
+            default:
+                XCTFail("Expected cancelled but got \(error)")
+            }
+        }
+    }
+}
+
+// MARK: - Error Handling (Stream)
+extension ChatCompletionTests {
+    func testStreamServerError() async throws {
+        URLProtocolMock.mockStreamData = ["event: error\ndata: Server error occurred\n\n"]
+        
+        do {
+            for try await _ in chat.stream(model: "claude-3-5-sonnet", messages: messages) {
+                XCTFail("Expected streamError to be thrown")
+            }
+        } catch let error as LLMChatAnthropicError {
+            switch error {
+            case .streamError:
+                break
+            default:
+                XCTFail("Expected streamError but got \(error)")
+            }
+        }
+    }
+    
     func testStreamNetworkError() async throws {
-        URLProtocolMock.mockError = NSError(
+        let networkError = NSError(
             domain: NSURLErrorDomain,
-            code: NSURLErrorNotConnectedToInternet,
-            userInfo: [NSLocalizedDescriptionKey: "The Internet connection appears to be offline."]
+            code: NSURLErrorNetworkConnectionLost,
+            userInfo: [NSLocalizedDescriptionKey: "The network connection was lost."]
         )
+        
+        URLProtocolMock.mockError = networkError
         
         do {
             for try await _ in chat.stream(model: "claude-3-5-sonnet", messages: messages) {
@@ -220,10 +275,70 @@ extension ChatCompletionTests {
         } catch let error as LLMChatAnthropicError {
             switch error {
             case .networkError(let underlyingError):
-                XCTAssertEqual((underlyingError as NSError).code, NSURLErrorNotConnectedToInternet)
+                XCTAssertEqual((underlyingError as NSError).code, NSURLErrorNetworkConnectionLost)
             default:
                 XCTFail("Expected networkError but got \(error)")
             }
         }
+    }
+    
+    func testStreamHTTPError() async throws {
+        URLProtocolMock.mockStatusCode = 503
+        URLProtocolMock.mockStreamData = [""]
+        
+        do {
+            for try await _ in chat.stream(model: "claude-3-5-sonnet", messages: messages) {
+                XCTFail("Expected serverError to be thrown")
+            }
+        } catch let error as LLMChatAnthropicError {
+            switch error {
+            case .serverError(let message):
+                XCTAssertTrue(message.contains("503"))
+            default:
+                XCTFail("Expected serverError but got \(error)")
+            }
+        }
+    }
+    
+    func testStreamDecodingError() async throws {
+        URLProtocolMock.mockStreamData = ["event: message_start\ndata: { invalid json }\n\n"]
+        
+        do {
+            for try await _ in chat.stream(model: "claude-3-5-sonnet", messages: messages) {
+                XCTFail("Expected decodingError to be thrown")
+            }
+        } catch let error as LLMChatAnthropicError {
+            switch error {
+            case .decodingError:
+                break
+            default:
+                XCTFail("Expected decodingError but got \(error)")
+            }
+        }
+    }
+    
+    func testStreamCancellation() async throws {
+        URLProtocolMock.mockStreamData = Array(repeating: "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"test\"}}\n\n", count: 1000)
+        
+        let expectation = XCTestExpectation(description: "Stream cancelled")
+        
+        let task = Task {
+            do {
+                for try await _ in chat.stream(model: "claude-3-5-sonnet", messages: messages) {
+                    try await Task.sleep(nanoseconds: 100_000_000) // 1 second
+                }
+                
+                XCTFail("Expected stream to be cancelled")
+            } catch is CancellationError {
+                expectation.fulfill()
+            } catch {
+                XCTFail("Expected CancellationError but got \(error)")
+            }
+        }
+        
+        try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        task.cancel()
+        
+        await fulfillment(of: [expectation], timeout: 5.0)
     }
 }
