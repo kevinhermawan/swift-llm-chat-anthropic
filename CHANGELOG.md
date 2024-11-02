@@ -1,3 +1,7 @@
+# 1.3.0
+
+- refactor: adds `statusCode` to `serverError` by @kevinhermawan in https://github.com/kevinhermawan/swift-llm-chat-anthropic/pull/10
+
 # 1.2.0
 
 - feat: conforms to `Sendable` by @kevinhermawan in https://github.com/kevinhermawan/swift-llm-chat-anthropic/pull/7
