@@ -1,32 +1,32 @@
 //
-//  PromptCachingView.swift
+//  PDFSupportView.swift
 //  Playground
 //
-//  Created by Kevin Hermawan on 10/6/24.
+//  Created by Kevin Hermawan on 11/3/24.
 //
 
 import SwiftUI
 import LLMChatAnthropic
 
-struct PromptCachingView: View {
+struct PDFSupportView: View {
     @Environment(AppViewModel.self) private var viewModel
     @State private var isPreferencesPresented: Bool = false
     
-    @State private var cachedPrompt: String = ""
-    @State private var prompt: String = "Who discovered gravity in the 17th century?"
+    @State private var document: String = "https://arxiv.org/pdf/1706.03762"
+    @State private var prompt: String = "Explain this document"
+    
     @State private var response: String = ""
     @State private var inputTokens: Int = 0
     @State private var outputTokens: Int = 0
     @State private var totalTokens: Int = 0
     
     var body: some View {
+        @Bindable var viewModelBindable = viewModel
+        
         VStack {
             Form {
-                Section("Cached Prompt") {
-                    TextField("Cached Prompt", text: $cachedPrompt)
-                }
-                
-                Section("Prompt") {
+                Section("Prompts") {
+                    TextField("Document", text: $document)
                     TextField("Prompt", text: $prompt)
                 }
                 
@@ -34,16 +34,7 @@ struct PromptCachingView: View {
                     Text(response)
                 }
                 
-                Section("Usage") {
-                    Text("Input Tokens")
-                        .badge(inputTokens.formatted())
-                    
-                    Text("Output Tokens")
-                        .badge(outputTokens.formatted())
-                    
-                    Text("Total Tokens")
-                        .badge(totalTokens.formatted())
-                }
+                UsageSection(inputTokens: inputTokens, outputTokens: outputTokens, totalTokens: totalTokens)
             }
             
             VStack {
@@ -51,11 +42,11 @@ struct PromptCachingView: View {
             }
         }
         .onAppear {
-            viewModel.setHeaders(["anthropic-beta": "prompt-caching-2024-07-31"])
+            viewModel.setHeaders(["anthropic-beta": "pdfs-2024-09-25"])
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
-                NavigationTitle("Prompt Caching")
+                NavigationTitle("PDF Support")
             }
             
             ToolbarItem(placement: .primaryAction) {
@@ -65,12 +56,6 @@ struct PromptCachingView: View {
         .sheet(isPresented: $isPreferencesPresented) {
             PreferencesView()
         }
-        .onAppear {
-            if let fileURL = Bundle.main.url(forResource: "prompt-caching", withExtension: "txt"),
-               let contents = try? String(contentsOf: fileURL, encoding: .utf8) {
-                self.cachedPrompt = contents
-            }
-        }
     }
     
     private func onSend() {
@@ -78,8 +63,7 @@ struct PromptCachingView: View {
         
         let messages = [
             ChatMessage(role: .system, content: viewModel.systemPrompt),
-            ChatMessage(role: .system, content: cachedPrompt, cacheControl: .init(type: .ephemeral)),
-            ChatMessage(role: .user, content: prompt)
+            ChatMessage(role: .user, content: [.text(prompt), .document(document)])
         ]
         
         let options = ChatOptions(temperature: viewModel.temperature)
@@ -108,8 +92,7 @@ struct PromptCachingView: View {
         
         let messages = [
             ChatMessage(role: .system, content: viewModel.systemPrompt),
-            ChatMessage(role: .system, content: cachedPrompt, cacheControl: .init(type: .ephemeral)),
-            ChatMessage(role: .user, content: prompt)
+            ChatMessage(role: .user, content: [.text(prompt), .document(document)])
         ]
         
         let options = ChatOptions(temperature: viewModel.temperature)
