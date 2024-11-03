@@ -193,6 +193,31 @@ let task = Task {
 
 To learn more about prompt caching, check out the [Anthropic documentation](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching).
 
+#### PDF Support (Beta)
+
+```swift
+let chat = LLMChatAnthropic(
+    apiKey: "<YOUR_ANTHROPIC_API_KEY>",
+    headers: ["anthropic-beta": "pdfs-2024-09-25"] // Required
+)
+
+let messages = [
+    ChatMessage(role: .user, content: [.text("Explain this document"), .document(document)])
+]
+
+let task = Task {
+    do {
+        let completion = try await chat.send(model: "claude-3-5-sonnet", messages: messages)
+
+        print(completion.content.first?.text ?? "No response")
+    } catch {
+        print(String(describing: error))
+    }
+}
+```
+
+To learn more about PDF support, check out the [Anthropic documentation](https://docs.anthropic.com/en/docs/build-with-claude/pdf-support).
+
 ### Error Handling
 
 `LLMChatAnthropic` provides structured error handling through the `LLMChatAnthropicError` enum. This enum contains three cases that represent different types of errors you might encounter:

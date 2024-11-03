@@ -26,9 +26,15 @@ struct AppView: View {
                         NavigationLink("Tool Use") {
                             ToolUseView()
                         }
-                        
+                    }
+                    
+                    Section("Beta") {
                         NavigationLink("Prompt Caching") {
                             PromptCachingView()
+                        }
+                        
+                        NavigationLink("PDF Support") {
+                            PDFSupportView()
                         }
                     }
                 }

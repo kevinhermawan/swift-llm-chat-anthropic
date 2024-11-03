@@ -12,10 +12,10 @@ public struct ChatMessage: Encodable, Sendable {
     /// The role of the participant in the chat conversation.
     public let role: Role
     
-    /// The content of the message, which can be text or image.
+    /// The content of the message, which can be text, image, or document.
     public let content: [Content]
     
-    /// The cache control settings for the message. Only applicable when the role is `system`.
+    /// The cache control settings for the message.
     public var cacheControl: CacheControl?
     
     /// An enum that represents the role of a participant in the chat.
@@ -33,6 +33,9 @@ public struct ChatMessage: Encodable, Sendable {
         /// A case that represents image content.
         case image(String)
         
+        /// A case that represents document content.
+        case document(String)
+        
         public func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
             
@@ -45,7 +48,7 @@ public struct ChatMessage: Encodable, Sendable {
                 var sourceContainer = container.nestedContainer(keyedBy: SourceCodingKeys.self, forKey: .source)
                 
                 if imageString.hasPrefix("http://") || imageString.hasPrefix("https://") {
-                    let (base64String, mediaType) = Content.convertImageUrlToBase64(url: imageString)
+                    let (base64String, mediaType) = Content.convertFileToBase64(url: imageString)
                     try sourceContainer.encode("base64", forKey: .type)
                     try sourceContainer.encode(mediaType, forKey: .mediaType)
                     try sourceContainer.encode(base64String, forKey: .data)
@@ -54,6 +57,20 @@ public struct ChatMessage: Encodable, Sendable {
                     try sourceContainer.encode("base64", forKey: .type)
                     try sourceContainer.encode(mediaType, forKey: .mediaType)
                     try sourceContainer.encode(imageString, forKey: .data)
+                }
+            case .document(let documentString):
+                try container.encode("document", forKey: .type)
+                var sourceContainer = container.nestedContainer(keyedBy: SourceCodingKeys.self, forKey: .source)
+                
+                if documentString.hasPrefix("http://") || documentString.hasPrefix("https://") {
+                    let (base64String, mediaType) = Content.convertFileToBase64(url: documentString)
+                    try sourceContainer.encode("base64", forKey: .type)
+                    try sourceContainer.encode(mediaType, forKey: .mediaType)
+                    try sourceContainer.encode(base64String, forKey: .data)
+                } else {
+                    try sourceContainer.encode("base64", forKey: .type)
+                    try sourceContainer.encode("application/pdf", forKey: .mediaType)
+                    try sourceContainer.encode(documentString, forKey: .data)
                 }
             }
         }
@@ -66,13 +83,13 @@ public struct ChatMessage: Encodable, Sendable {
             case type, mediaType = "media_type", data
         }
         
-        private static func convertImageUrlToBase64(url: String) -> (String, String) {
-            guard let imageUrl = URL(string: url), let imageData = try? Data(contentsOf: imageUrl) else {
+        private static func convertFileToBase64(url: String) -> (String, String) {
+            guard let fileUrl = URL(string: url), let fileData = try? Data(contentsOf: fileUrl) else {
                 return ("", "")
             }
             
-            let base64String = imageData.base64EncodedString()
-            let mediaType = detectMediaType(from: imageData)
+            let base64String = fileData.base64EncodedString()
+            let mediaType = detectMediaType(from: fileData)
             
             return (base64String, mediaType)
         }
@@ -96,6 +113,8 @@ public struct ChatMessage: Encodable, Sendable {
                 return "image/gif"
             } else if bytes.starts(with: [0x52, 0x49, 0x46, 0x46]) && String(data: data.subdata(in: 8..<12), encoding: .ascii) == "WEBP" {
                 return "image/webp"
+            } else if bytes.starts(with: [0x25, 0x50, 0x44, 0x46]) {
+                return "application/pdf"
             } else {
                 return ""
             }
@@ -119,7 +138,6 @@ public struct ChatMessage: Encodable, Sendable {
             self.type = type
         }
     }
-    
     
     /// Creates a new instance of ``ChatMessage``.
     /// - Parameters:

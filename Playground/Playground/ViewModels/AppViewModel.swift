@@ -23,26 +23,25 @@ final class AppViewModel {
     var temperature = 0.5
     
     init() {
-        if let existingApiKey = UserDefaults.standard.string(forKey: "apiKey") {
-            self.apiKey = existingApiKey
-        }
-        
-        fetchModels()
         configureChat()
+        fetchModels()
+    }
+    
+    func setHeaders(_ headers: [String: String]) {
+        chat = LLMChatAnthropic(apiKey: apiKey, headers: headers)
     }
     
     func saveSettings() {
         UserDefaults.standard.set(apiKey, forKey: "apiKey")
-        
-        if let newApiKey = UserDefaults.standard.string(forKey: "apiKey") {
-            self.apiKey = newApiKey
-        }
-        
         configureChat()
     }
     
     private func configureChat() {
-        chat = LLMChatAnthropic(apiKey: apiKey, headers: ["anthropic-beta": "prompt-caching-2024-07-31"])
+        if let apiKey = UserDefaults.standard.string(forKey: "apiKey") {
+            self.apiKey = apiKey
+        }
+        
+        chat = LLMChatAnthropic(apiKey: apiKey)
     }
     
     private func fetchModels() {
