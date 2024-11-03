@@ -1,3 +1,7 @@
+# 1.3.1
+
+- feat: adds PDF support by @kevinhermawan in https://github.com/kevinhermawan/swift-llm-chat-anthropic/pull/11
+
 # 1.3.0
 
 - refactor: adds `statusCode` to `serverError` by @kevinhermawan in https://github.com/kevinhermawan/swift-llm-chat-anthropic/pull/10
